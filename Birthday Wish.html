@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Epic Birthday Wish</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- GSAP for Advanced Animations -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    
+    <!-- Canvas Confetti for the Wow Factor -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <!-- Google Fonts: Space Grotesk for a modern, bold boyish look -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700;900&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Space Grotesk', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            dark: '#05050A',
+                            gold: '#FFD700',
+                            blue: '#00E5FF',
+                            purple: '#8A2BE2'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden; /* No scrolling */
+            background-color: #05050A;
+            color: white;
+            perspective: 1000px;
+        }
+
+        #bg-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+
+        /* 3D Tilt Card Styles */
+        .tilt-card {
+            transform-style: preserve-3d;
+            transform: perspective(1000px);
+            transition: transform 0.1s;
+            will-change: transform;
+        }
+
+        .tilt-card-inner {
+            transform: translateZ(50px);
+            box-shadow: 0 20px 50px rgba(0, 229, 255, 0.2), inset 0 0 0 2px rgba(255, 215, 0, 0.3);
+            background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%);
+            backdrop-filter: blur(10px);
+        }
+
+        /* Glowing text gradient */
+        .text-gradient-glow {
+            background: linear-gradient(to right, #FFD700, #00E5FF, #FFD700);
+            background-size: 200% auto;
+            color: transparent;
+            -webkit-background-clip: text;
+            background-clip: text;
+            animation: shine 3s linear infinite;
+            text-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+        }
+
+        @keyframes shine {
+            to { background-position: 200% center; }
+        }
+
+        /* Character split animation utility */
+        .char {
+            display: inline-block;
+            opacity: 0;
+            transform: translateY(30px);
+        }
+
+        /* Loader */
+        #loader {
+            position: fixed;
+            inset: 0;
+            background: #05050A;
+            z-index: 50;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        
+        .loader-bar {
+            width: 200px;
+            height: 4px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 20px;
+        }
+        
+        .loader-fill {
+            width: 0%;
+            height: 100%;
+            background: #00E5FF;
+            box-shadow: 0 0 10px #00E5FF;
+        }
+
+        /* Glass Modal for Dua */
+        #dua-modal {
+            background: rgba(5, 5, 10, 0.8);
+            backdrop-filter: blur(20px);
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: scale(0.95);
+        }
+        
+        #dua-modal.active {
+            opacity: 1;
+            pointer-events: auto;
+            transform: scale(1);
+        }
+
+        /* Glowing Button */
+        .glow-btn {
+            position: relative;
+            background: transparent;
+            border: 1px solid rgba(0, 229, 255, 0.5);
+            overflow: hidden;
+            transition: 0.3s;
+        }
+        .glow-btn:hover {
+            box-shadow: 0 0 20px rgba(0, 229, 255, 0.4), inset 0 0 20px rgba(0, 229, 255, 0.2);
+            border-color: #00E5FF;
+        }
+        .glow-btn::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: 0.5s;
+        }
+        .glow-btn:hover::before {
+            left: 100%;
+        }
+    </style>
+</head>
+<body class="antialiased flex flex-col items-center justify-center h-[100dvh] w-screen relative">
+
+    <!-- Preloader -->
+    <div id="loader">
+        <!-- Yahan par "Initializing Setup" tha, isko "Preparing Surprise..." kar diya hai -->
+        <h2 class="text-brand-blue tracking-[0.5em] text-sm font-bold uppercase animate-pulse">Preparing Surprise...</h2>
+        <div class="loader-bar">
+            <div class="loader-fill" id="loader-fill"></div>
+        </div>
+    </div>
+
+    <!-- Animated Background -->
+    <canvas id="bg-canvas"></canvas>
+
+    <!-- Main Content Container -->
+    <main class="relative z-10 w-full max-w-7xl h-full flex flex-col items-center justify-center py-4 px-4 sm:px-8" id="main-content" style="opacity: 0;">
+        
+        <!-- 3D Picture Card (Centerpiece) -->
+        <div class="tilt-card w-48 h-48 sm:w-64 sm:h-64 rounded-full relative z-20 mb-6" id="tilt-element">
+            <div class="tilt-card-inner w-full h-full rounded-full p-2 absolute inset-0">
+                <!-- Outer glowing rings (Toned down from spinning to static/soft pulse) -->
+                <div class="absolute inset-0 rounded-full border border-brand-gold/40 shadow-[0_0_15px_rgba(255,215,0,0.2)] animate-pulse"></div>
+                <div class="absolute inset-2 rounded-full border border-brand-blue/30"></div>
+                
+                <!-- The Picture (Yahan external link daal diya hai) -->
+                <img src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=500&auto=format&fit=crop" 
+                     alt="Birthday Boy" 
+                     class="w-full h-full rounded-full object-cover shadow-[0_0_40px_rgba(0,229,255,0.4)] pointer-events-none">
+            </div>
+        </div>
+
+        <!-- Exploding Text Area -->
+        <div class="text-center z-10 w-full relative">
+            <h3 class="gsap-subtext text-brand-gold tracking-[0.4em] text-xs sm:text-sm uppercase font-bold mb-2">A Very Special Day</h3>
+            
+            <h1 class="font-black uppercase tracking-tighter leading-none mb-6 relative flex flex-col items-center" id="hb-text" style="will-change: transform;">
+                <span class="block text-[15vw] sm:text-7xl md:text-9xl text-gradient-glow transform translate-y-10 opacity-0" id="happy">HAPPY</span>
+                <span class="block text-[12vw] sm:text-6xl md:text-8xl text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.5)] -mt-2 sm:-mt-6 transform translate-y-10 opacity-0" id="birthday">BIRTHDAY</span>
+                <span class="block text-3xl sm:text-5xl text-brand-blue tracking-widest mt-2 transform translate-y-10 opacity-0 font-medium" id="name" style="text-shadow: 0 0 10px rgba(0, 229, 255, 0.4);">Attat Rasool</span>
+            </h1>
+        </div>
+
+        <!-- Interactive Button to open Dua -->
+        <div class="gsap-btn mt-4 z-20">
+            <button onclick="openDua()" class="glow-btn px-8 py-3 rounded-full text-brand-blue font-bold uppercase tracking-wider text-sm flex items-center gap-2">
+                <span>Open Special Dua</span>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+            </button>
+        </div>
+
+    </main>
+
+    <!-- Glassmorphism Dua Modal -->
+    <div id="dua-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="relative w-full max-w-2xl rounded-3xl border border-brand-gold/20 bg-[#05050a]/90 p-8 shadow-[0_0_50px_rgba(138,43,226,0.3)] overflow-hidden">
+            <!-- Modal Background Effects -->
+            <div class="absolute top-0 right-0 w-64 h-64 bg-brand-blue/10 rounded-full blur-3xl -mr-32 -mt-32"></div>
+            <div class="absolute bottom-0 left-0 w-64 h-64 bg-brand-purple/10 rounded-full blur-3xl -ml-32 -mb-32"></div>
+            
+            <div class="relative z-10 text-center">
+                <div class="w-16 h-16 mx-auto bg-brand-gold/10 rounded-full flex items-center justify-center mb-6 shadow-[0_0_20px_rgba(255,215,0,0.2)]">
+                    <svg class="w-8 h-8 text-brand-gold" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                </div>
+                
+                <h2 class="text-2xl sm:text-3xl font-bold text-white mb-6 tracking-wide">A Prayer For You</h2>
+                
+                <p class="text-gray-300 text-lg sm:text-xl font-light leading-relaxed mb-8 italic">
+                    "May Allah bless your journey with limitless success, shield you from all harm, and illuminate your heart with true happiness. May you conquer every goal you set and shine brighter with every passing year. Ameen."
+                </p>
+                
+                <button onclick="closeDua()" class="px-6 py-2 rounded-full bg-white/10 hover:bg-white/20 text-white font-medium transition-colors border border-white/20">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. Master GSAP Timeline & Loader ---
+        window.addEventListener('load', () => {
+            const loaderFill = document.getElementById('loader-fill');
+            const masterTl = gsap.timeline();
+
+            // Fake loading progress
+            masterTl.to(loaderFill, { width: '100%', duration: 1.5, ease: "power2.inOut" })
+                .to('#loader', { opacity: 0, duration: 0.5, onComplete: () => document.getElementById('loader').style.display = 'none' })
+                .to('#main-content', { opacity: 1, duration: 0.1 })
+                
+                // Blast Confetti as content appears
+                .add(() => {
+                    fireConfetti();
+                })
+
+                // Animate Picture Card (Softer entrance)
+                .from('.tilt-card', { scale: 0.8, opacity: 0, duration: 1.2, ease: "power3.out" })
+                
+                // Animate Text Words (Smooth fade up - fix for HAPPY missing)
+                .to('#happy', { opacity: 1, y: 0, duration: 0.8, ease: "power2.out" }, "-=0.8")
+                .to('#birthday', { opacity: 1, y: 0, duration: 0.8, ease: "power2.out" }, "-=0.6")
+                .to('#name', { opacity: 1, y: 0, duration: 0.8, ease: "power2.out" }, "-=0.6")
+                
+                // Animate Subtext and Button
+                .from('.gsap-subtext', { opacity: 0, y: 10, duration: 0.5 }, "-=0.2")
+                .from('.gsap-btn', { opacity: 0, y: 10, duration: 0.5 }, "-=0.2");
+        });
+
+        // --- 2. Epic Confetti Function (Toned down to a single elegant burst) ---
+        function fireConfetti() {
+            confetti({
+                particleCount: 100,
+                spread: 80,
+                origin: { y: 0.6 },
+                colors: ['#FFD700', '#00E5FF', '#8A2BE2'],
+                disableForReducedMotion: true
+            });
+        }
+
+        // --- 4. 3D Tilt Effect (Vanilla JS) ---
+        const tiltEl = document.getElementById('tilt-element');
+        
+        document.addEventListener('mousemove', (e) => {
+            // Apply a slight parallax to the background text as well
+            const x = (window.innerWidth / 2 - e.pageX) / 80; // Softer parallax
+            const y = (window.innerHeight / 2 - e.pageY) / 80;
+            gsap.to('#hb-text', { x: x, y: y, duration: 1, ease: "power1.out" });
+
+            // Apply tilt to the card
+            if(!tiltEl) return;
+            const rect = tiltEl.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            
+            const mouseX = e.clientX - centerX;
+            const mouseY = e.clientY - centerY;
+            
+            const rotateX = (mouseY / (rect.height / 2)) * -5; // Max 5 deg tilt (toned down)
+            const rotateY = (mouseX / (rect.width / 2)) * 5;
+
+            tiltEl.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+        });
+
+        tiltEl.addEventListener('mouseleave', () => {
+            tiltEl.style.transform = `perspective(1000px) rotateX(0deg) rotateY(0deg)`;
+        });
+
+        // --- 5. Interactive Modal Logic ---
+        function openDua() {
+            const modal = document.getElementById('dua-modal');
+            modal.classList.add('active');
+            // Small pop effect for the content inside
+            gsap.fromTo(modal.querySelector('.relative'), 
+                { scale: 0.8, opacity: 0, y: 50 }, 
+                { scale: 1, opacity: 1, y: 0, duration: 0.5, ease: "back.out(1.5)", delay: 0.1 }
+            );
+        }
+
+        function closeDua() {
+            document.getElementById('dua-modal').classList.remove('active');
+        }
+
+        // --- 6. Interactive Cosmic Background (Canvas) ---
+        const canvas = document.getElementById('bg-canvas');
+        const ctx = canvas.getContext('2d');
+        let width, height, orbs;
+
+        function initBackground() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            orbs = [];
+            
+            const numOrbs = window.innerWidth < 600 ? 10 : 20; // Fewer orbs
+            
+            for(let i=0; i<numOrbs; i++) {
+                orbs.push({
+                    x: Math.random() * width,
+                    y: Math.random() * height,
+                    radius: Math.random() * 3 + 1,
+                    vx: (Math.random() - 0.5) * 0.15, // Slower movement
+                    vy: (Math.random() - 0.5) * 0.15,
+                    color: Math.random() > 0.5 ? '#00E5FF' : '#FFD700',
+                    alpha: Math.random() * 0.5 + 0.1
+                });
+            }
+        }
+
+        function animateBackground() {
+            ctx.clearRect(0, 0, width, height);
+            
+            orbs.forEach(orb => {
+                orb.x += orb.vx;
+                orb.y += orb.vy;
+                
+                if(orb.x < 0 || orb.x > width) orb.vx *= -1;
+                if(orb.y < 0 || orb.y > height) orb.vy *= -1;
+                
+                ctx.beginPath();
+                ctx.arc(orb.x, orb.y, orb.radius, 0, Math.PI * 2);
+                ctx.fillStyle = orb.color;
+                ctx.globalAlpha = orb.alpha;
+                // Removed shadowBlur to fix lag and improve performance significantly
+                ctx.fill();
+                ctx.globalAlpha = 1.0;
+            });
+            
+            requestAnimationFrame(animateBackground);
+        }
+
+        initBackground();
+        animateBackground();
+        window.addEventListener('resize', initBackground);
+
+    </script>
+</body>
+</html>
